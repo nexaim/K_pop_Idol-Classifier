@@ -1,11 +1,12 @@
+from os.path import join
 from selenium import webdriver
 import os
 import urllib.request
 import time
 import datetime
 from selenium.webdriver.chrome.options import Options
+import random
 
-del chrome_options
 
 chrome_options = Options()
 chrome_options.add_argument('headless')
@@ -70,41 +71,90 @@ def crawl(keywords):
 
 def listing_idol_group():
     
-    path = 'https://en.m.wikipedia.org/wiki/List_of_South_Korean_idol_groups_(2010s)'
-
     driver = webdriver.Chrome('./chromedriver.exe', chrome_options= chrome_options)
+    path = 'https://ko.wikipedia.org/wiki/%EB%8C%80%ED%95%9C%EB%AF%BC%EA%B5%AD%EC%9D%98_%EC%95%84%EC%9D%B4%EB%8F%8C_%EA%B7%B8%EB%A3%B9_%EB%AA%A9%EB%A1%9D#%EA%B0%99%EC%9D%B4_%EB%B3%B4%EA%B8%B0'
     driver.get(path)
-    
-    lista = driver.find_elements_by_xpath('/html/body/div[1]/div/main/div[3]/div[1]/div/section[*]/div/ul/li[*]/a')
-    
-    for a in lista:
-        print(a.text)
 
-    driver.close()
+    idols ={}
+    lista = driver.find_elements_by_xpath('//*[@id="mw-content-text"]/div[1]/table['+ str(6) +']/tbody/tr[*]/td[1]')
+    listb = driver.find_elements_by_xpath('//*[@id="mw-content-text"]/div[1]/table['+ str(7) +']/tbody/tr[*]/td[1]|//*[@id="mw-content-text"]/div[1]/table['+ str(7) +']/tbody/tr[*]/td[2]')
+    listc = driver.find_elements_by_xpath('//*[@id="mw-content-text"]/div[1]/table['+ str(8) +']/tbody/tr[*]/td[1]|//*[@id="mw-content-text"]/div[1]/table['+ str(8) +']/tbody/tr[*]/td[2]')
+
+    def listing(idols,lista):
+        for a in range(len(lista)):
+            print(lista[a].text)
+            idols[lista[a].text.split('\n')[0]] = ','.join(lista[a].text.split('\n')[1:])
+
+        return idols
+
+    idols = listing(idols,lista)
     
+    def listingb(idols, listb):
+        c = len(listb)
+        for b in range(0,c,2):
+            print(listb[b].text +" : "+ listb[b+1].text )
+            idols[listb[b].text] = listb[b+1].text
+        return idols
     
+    idols = listingb(idols, listb)
+    idols = listingb(idols, listc)
     
-    driver.implicitly_wait(3)
+        
+    def collect_member(idol):
+        rs_idol={}
+        path = 'https://www.google.com/search?q=' + idol +'+멤버'
+            
+        try:
+            driver.get(path)
+            members = driver.find_elements_by_xpath('/html/body/div[7]/div/div[7]/div/div/div/div/div[3]/div/div[2]/div/g-scrolling-carousel/div[1]/div/div[*]/div/div[*]/div/a/div[*]/div[*]/div/div[1]')
 
-    idols =[]
-    lista = driver.find_elements_by_xpath('//*[@id="mw-content-text"]/div[1]/table['+ str(6) +']/tbody/tr[*]/td[1]/p')
-    listb = driver.find_elements_by_xpath('//*[@id="mw-content-text"]/div[1]/table['+ str(7) +']/tbody/tr[*]/td[2]')
-    listc = driver.find_elements_by_xpath('//*[@id="mw-content-text"]/div[1]/table['+ str(8) +']/tbody/tr[*]/td[2]')
+            list_tmp=[]   
+            for member in members:
+                list_tmp.append(member.text)
+                
+            rs_idol[idol]=','.join(list_tmp)
 
-    for a in lista:
-        idols.append(a.text.strip('(').strip(')'))
-        print(a.text.strip('(').strip(')'))
-    for b in listb:
-        idols.append(b.text.strip('(').strip(')'))
-        print(b.text.strip('(').strip(')'))
+        except Exception as e:
+            print(e)
+            pass
+
+        return rs_idol
     
-    for c in listc:
-        idols.append(c.text.strip('(').strip(')'))
-        print(c.text.strip('(').strip(')'))
+    result =[]
+    count = 0
+    
+    try:
+        driver.close()
+    except:
+        pass
+    
+    for idol in range(len(idols.keys())):
+        
+        if count%5 ==0:
+            driver = webdriver.Chrome('./chromedriver.exe', chrome_options= chrome_options)
+        
+        rs_idol = collect_member(list(idols.keys())[count])
+        
+        if list(rs_idol.values())[0] == '':
+            print('정보 없음')
+            pass
+        else:
+            result.append(rs_idol)
+            print(rs_idol)
 
-    driver.close()
+        count +=1
 
-    len(idols) # 337그룹
-    idols[2]
+        driver.implicitly_wait(random.randint(3,5))
+        
+        if count %5==0:
+            driver.close()
 
-    pass
+
+import json
+
+result = json.dumps(result)
+
+
+f = open("save.txt", 'w')
+f.write(result)
+f.close()
